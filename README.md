@@ -15,8 +15,24 @@ Using pipenv
 `pipenv install django_json_logging`
 
 # Quick start
-In your project’s `settings.py` add these settings.
+In your project’s `settings.py` add `AccessLogMiddleware` to `MIDDLEWARE` and add `JSONFormatter` to `LOGGING`.
 
 ```
-
+MIDDLEWARE = [
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    ...
+    'django_json_logging.middleware.AccessLogMiddleware',
+]
+```
+``` 
+LOGGING = {
+    ...
+    'formatters': {"json": {'()': 'django_json_logging.logger.JSONFormatter'}},
+    ...
+}
 ```
