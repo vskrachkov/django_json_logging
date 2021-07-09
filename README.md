@@ -34,7 +34,7 @@ MIDDLEWARE = [
 ``` 
 LOGGING = {
     ...
-    'formatters': {"json": {'()': 'django_json_logging.logger.JSONFormatter'}},
+    'formatters': {"json": {'()': 'django_json_logging.logging.JSONFormatter'}},
     ...
 }
 ```
