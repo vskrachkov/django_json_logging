@@ -1,6 +1,8 @@
 # django_json_logging
 Various JSON logging extensions for the Django Framework
 
+[![PyPI Version][pypi-image]][pypi-url]
+
 [pypi-image]: https://img.shields.io/pypi/v/django_json_logging
 [pypi-url]: https://pypi.org/project/django_json_logging/
 
