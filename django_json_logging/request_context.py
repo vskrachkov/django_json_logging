@@ -37,8 +37,7 @@ class RequestContext:
 
     @classmethod
     def _set_thread_variable(cls, key: str, val: Optional[Any]) -> None:
-        if val is not None:
-            setattr(cls._thread_local, key, val)
+        setattr(cls._thread_local, key, val)
 
     @classmethod
     def _get_thread_variable(cls, key: Any, default: Optional[_T] = None) -> _T:
