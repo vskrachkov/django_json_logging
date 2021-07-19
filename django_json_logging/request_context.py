@@ -5,8 +5,6 @@ _T = TypeVar("_T")
 
 
 class RequestContext:
-    _thread_local = local()
-
     REQUEST_ID_VARIABLE = "_request_id"
     USE_SESSION_ID_VARIABLE = "_user_session_id"
     USER = "_user"
@@ -37,8 +35,8 @@ class RequestContext:
 
     @classmethod
     def _set_thread_variable(cls, key: str, val: Optional[Any]) -> None:
-        setattr(cls._thread_local, key, val)
+        setattr(local(), key, val)
 
     @classmethod
     def _get_thread_variable(cls, key: Any, default: Optional[_T] = None) -> _T:
-        return getattr(cls._thread_local, key, default)
+        return getattr(local(), key, default)
