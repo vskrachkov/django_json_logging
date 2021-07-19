@@ -1,14 +1,20 @@
 import base64
 import logging
 import uuid
-from typing import Type, Optional, Callable
+from dataclasses import dataclass
+from typing import Optional, Callable, Any
 
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest, HttpResponse, QueryDict
 
-from django_json_logging.request_context import RequestContext
-
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class RequestContext:
+    request_id: Any
+    user: Any
+    user_session_id: Any
 
 
 class AccessLogMiddleware:
@@ -16,16 +22,17 @@ class AccessLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        self.log_request(request)
+        request_context = self.log_request(request)
         response: HttpResponse = self.get_response(request)
-        self.log_response(response)
+        self.log_response(response, request_context)
         return response
 
-    def log_request(self, request: HttpRequest) -> None:
-        request_context = self.get_request_context_class()
-        request_context.set_request_id(self.get_request_id(request))
-        request_context.set_user(self.get_user(request))
-        request_context.set_user_session_id(self.get_user_session_id(request))
+    def log_request(self, request: HttpRequest) -> RequestContext:
+        request_context = RequestContext(
+            request_id=self.get_request_id(request),
+            user=self.get_user(request),
+            user_session_id=self.get_user_session_id(request),
+        )
         log.info(
             "RX",
             extra=dict(
@@ -35,8 +42,12 @@ class AccessLogMiddleware:
                 user_agent=self.get_user_agent(request),
                 ip=self.get_ip(request),
                 x_forwarded_for=self.get_x_forwarded_for(request),
+                request_id=request_context.request_id,
+                user=request_context.user,
+                user_session_id=request_context.user_session_id,
             ),
         )
+        return request_context
 
     @staticmethod
     def get_x_forwarded_for(request: HttpRequest) -> Optional[str]:
@@ -73,15 +84,14 @@ class AccessLogMiddleware:
         return session_id
 
     @staticmethod
-    def log_response(response: HttpResponse) -> None:
+    def log_response(response: HttpResponse, request_context: RequestContext) -> None:
         log.info(
             "TX",
             extra=dict(
                 status_code=response.status_code,
                 cookies=response.cookies if response.cookies else None,
+                request_id=request_context.request_id,
+                user=request_context.user,
+                user_session_id=request_context.user_session_id,
             ),
         )
-
-    @staticmethod
-    def get_request_context_class() -> Type[RequestContext]:
-        return RequestContext
