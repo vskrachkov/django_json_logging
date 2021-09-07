@@ -16,18 +16,16 @@ class AccessLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        request_context = self.log_request(request)
+        self.log_request(request)
         response: HttpResponse = self.get_response(request)
-        self.log_response(response, request_context)
+        self.log_response(response)
         return response
 
-    def log_request(self, request: HttpRequest) -> RequestContext:
-        request_context = RequestContext(
-            request_id=self.get_request_id(request),
-            user=self.get_user(request),
-            user_session_id=self.get_user_session_id(request),
-            ip=self.get_ip(request) or self.get_x_forwarded_for(request),
-        )
+    def log_request(self, request: HttpRequest) -> None:
+        RequestContext.set_request_id(self.get_request_id(request))
+        RequestContext.set_user(self.get_user(request))
+        RequestContext.set_user_session_id(self.get_user_session_id(request))
+        RequestContext.set_ip(self.get_ip(request) or self.get_x_forwarded_for(request))
         extra: dict = dict(
             http_method=request.method,
             path=request.path,
@@ -35,17 +33,14 @@ class AccessLogMiddleware:
             user_agent=self.get_user_agent(request),
             x_forwarded_for=self.get_x_forwarded_for(request),
         )
-        extra.update(request_context.to_dict())
         log.info("RX", extra=extra)
-        return request_context
 
     @staticmethod
-    def log_response(response: HttpResponse, request_context: RequestContext) -> None:
+    def log_response(response: HttpResponse) -> None:
         extra = dict(
             status_code=response.status_code,
             cookies=response.cookies if response.cookies else None,
         )
-        extra.update(request_context.to_dict())
         log.info("TX", extra=extra)
 
     @staticmethod
