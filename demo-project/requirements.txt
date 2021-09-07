@@ -1,0 +1,1 @@
+django-json-logging==0.0.3
