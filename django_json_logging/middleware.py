@@ -1,20 +1,14 @@
 import base64
 import logging
 import uuid
-from dataclasses import dataclass
-from typing import Optional, Callable, Any
+from typing import Optional, Callable
 
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest, HttpResponse, QueryDict
 
+from django_json_logging.context import RequestContext
+
 log = logging.getLogger(__name__)
-
-
-@dataclass
-class RequestContext:
-    request_id: Any
-    user: Any
-    user_session_id: Any
 
 
 class AccessLogMiddleware:
@@ -32,22 +26,27 @@ class AccessLogMiddleware:
             request_id=self.get_request_id(request),
             user=self.get_user(request),
             user_session_id=self.get_user_session_id(request),
+            ip=self.get_ip(request) or self.get_x_forwarded_for(request),
         )
-        log.info(
-            "RX",
-            extra=dict(
-                http_method=request.method,
-                path=request.path,
-                query_params=self.get_query_params(request),
-                user_agent=self.get_user_agent(request),
-                ip=self.get_ip(request),
-                x_forwarded_for=self.get_x_forwarded_for(request),
-                request_id=request_context.request_id,
-                user=request_context.user,
-                user_session_id=request_context.user_session_id,
-            ),
+        extra: dict = dict(
+            http_method=request.method,
+            path=request.path,
+            query_params=self.get_query_params(request),
+            user_agent=self.get_user_agent(request),
+            x_forwarded_for=self.get_x_forwarded_for(request),
         )
+        extra.update(request_context.to_dict())
+        log.info("RX", extra=extra)
         return request_context
+
+    @staticmethod
+    def log_response(response: HttpResponse, request_context: RequestContext) -> None:
+        extra = dict(
+            status_code=response.status_code,
+            cookies=response.cookies if response.cookies else None,
+        )
+        extra.update(request_context.to_dict())
+        log.info("TX", extra=extra)
 
     @staticmethod
     def get_x_forwarded_for(request: HttpRequest) -> Optional[str]:
@@ -82,16 +81,3 @@ class AccessLogMiddleware:
         session = getattr(request, "session", None)
         session_id = getattr(session, "session_key", None)
         return session_id
-
-    @staticmethod
-    def log_response(response: HttpResponse, request_context: RequestContext) -> None:
-        log.info(
-            "TX",
-            extra=dict(
-                status_code=response.status_code,
-                cookies=response.cookies if response.cookies else None,
-                request_id=request_context.request_id,
-                user=request_context.user,
-                user_session_id=request_context.user_session_id,
-            ),
-        )
