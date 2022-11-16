@@ -5,6 +5,7 @@ from typing import Optional, Callable
 
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest, HttpResponse, QueryDict
+from django.conf import settings
 
 from django_json_logging.context import RequestContext
 
@@ -14,6 +15,7 @@ log = logging.getLogger(__name__)
 class AccessLogMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
+        self.conf = getattr(settings, "DJANGO_JSON_LOGGING_SETTINGS", {})
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         self.log_request(request)
@@ -32,16 +34,23 @@ class AccessLogMiddleware:
             query_params=self.get_query_params(request),
             user_agent=self.get_user_agent(request),
             x_forwarded_for=self.get_x_forwarded_for(request),
+            body=self.get_request_body(request),
         )
         log.info("RX", extra=extra)
 
-    @staticmethod
-    def log_response(response: HttpResponse) -> None:
+    def log_response(self, response: HttpResponse) -> None:
         extra = dict(
             status_code=response.status_code,
             cookies=response.cookies if response.cookies else None,
+            body=self.get_response_body(response),
         )
         log.info("TX", extra=extra)
+
+    def get_response_body(self, response: HttpResponse) -> str:
+        return response.content[: self.conf.get("MAX_BODY_SIZE", 500)].decode("utf8")
+
+    def get_request_body(self, request: HttpRequest) -> str:
+        return request.body[: self.conf.get("MAX_BODY_SIZE", 500)].decode("utf8")
 
     @staticmethod
     def get_x_forwarded_for(request: HttpRequest) -> Optional[str]:
